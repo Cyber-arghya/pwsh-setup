@@ -1,9 +1,15 @@
 # ==========================================
 # File: setup.ps1
-# Description: Installs a modular script manager and essential aliases
+# Description: Bulletproof Architecture (Embeds engine directly in Profile)
 # ==========================================
 
-$bootstrapCode = @'
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+
+$engineCode = @'
+
+# ==========================================
+# POWERSHELL CUSTOM SCRIPT MANAGER
+# ==========================================
 function global:Install-PSScript {
     param([Parameter(Mandatory=$true, ValueFromPipeline=$true)][string]$Target, [string]$Name)
     process {
@@ -27,56 +33,58 @@ function global:Install-PSScript {
             $fn = ($Name -replace '\.ps1$','') + ".ps1"
             $destFile = Join-Path $scriptDir $fn
             
-            # AUTOMAGIC: Enforce global scope for raw functions to survive installation
             $c = $c -replace '(?i)function\s+([a-z0-9_-]+)', 'function global:$1'
             Set-Content -Path $destFile -Value $c -Encoding UTF8 -Force
-        }
-
-        if (-not (Test-Path $PROFILE)) { New-Item -Path $PROFILE -ItemType File -Force | Out-Null }
-        
-        # ROBUST AUTO-LOADER (Fixes MotW / Execution Policy blocks on reboot)
-        $loaderScript = @"
-`n# AUTO-LOADER FOR MODULAR SCRIPTS (PERMANENT FIX)
-if (Test-Path `"$scriptDir`") {
-    Get-ChildItem -Path `"$scriptDir`" -Filter '*.ps1' | ForEach-Object {
-        Unblock-File -LiteralPath `$_.FullName -ErrorAction Ignore 
-        . `$_.FullName
-    }
-}
-"@
-        $profContent = Get-Content -LiteralPath $PROFILE -Raw -ErrorAction Ignore
-        if ($profContent -notmatch 'AUTO-LOADER FOR MODULAR SCRIPTS') {
-            Add-Content -Path $PROFILE -Value $loaderScript -Encoding UTF8
-        } elseif ($profContent -match 'AUTO-LOADER FOR MODULAR SCRIPTS' -and $profContent -notmatch 'Unblock-File') {
-             # Upgrade old loader to robust loader
-             $profContent = $profContent -replace '(?s)# AUTO-LOADER FOR MODULAR SCRIPTS.*', ''
-             Set-Content -LiteralPath $PROFILE -Value ($profContent + $loaderScript) -Encoding UTF8 -Force
         }
         
         . $destFile
         Write-Host "[+] Installed: $fn" -ForegroundColor Green
     }
 }
+
+# AUTO-LOADER FOR MODULAR SCRIPTS
+$cDir = Join-Path (Split-Path $PROFILE) "CustomScripts"
+if (Test-Path $cDir) {
+    Get-ChildItem -Path $cDir -Filter '*.ps1' | ForEach-Object {
+        Unblock-File -LiteralPath $_.FullName -ErrorAction Ignore 
+        . $_.FullName
+    }
+}
+# ==========================================
 '@
 
-set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
-# 2. Bootstrap the core engine
-Invoke-Expression $bootstrapCode
-Install-PSScript $bootstrapCode -Name "Install-PSScript"
+if (-not (Test-Path $PROFILE)) { New-Item -Path $PROFILE -ItemType File -Force | Out-Null }
+$profContent = Get-Content -LiteralPath $PROFILE -Raw -ErrorAction Ignore
 
-# 3. Setup Essential Shortcuts & Functions
+# Clean up old/buggy versions to prevent duplicates
+if ($profContent -match 'POWERSHELL CUSTOM SCRIPT MANAGER') {
+    $profContent = $profContent -replace '(?s)# ==========================================.*?# ==========================================', ''
+}
+if ($profContent -match 'AUTO-LOADER FOR MODULAR SCRIPTS') {
+    $profContent = $profContent -replace '(?s)# AUTO-LOADER FOR MODULAR SCRIPTS.*', ''
+}
+
+# Embed the unbreakable engine into the Profile
+Set-Content -LiteralPath $PROFILE -Value ($profContent.Trim() + "`n" + $engineCode) -Encoding UTF8 -Force
+
+# Load the new engine into the current session
+. $PROFILE
+
+# Remove the old buggy script if it exists
+$buggyFile = Join-Path (Split-Path $PROFILE) "CustomScripts\Install-PSScript.ps1"
+if (Test-Path $buggyFile) { Remove-Item -LiteralPath $buggyFile -Force }
+
+# Install default tools
 Install-PSScript "function inps { Install-PSScript @args }" -Name "Alias-inps"
 
-inps @'
+Install-PSScript @'
 function ip {
     Write-Host "[ Public IP ]" -ForegroundColor Cyan
     try { 
         $pub = (Invoke-RestMethod ifconfig.me/ip -TimeoutSec 3).Trim()
         Write-Host $pub -ForegroundColor Green 
     } 
-    catch { 
-        Write-Host "Offline / Unreachable" -ForegroundColor Red 
-    }
+    catch { Write-Host "Offline / Unreachable" -ForegroundColor Red }
     
     Write-Host "`n[ Local & Virtual IPs ]" -ForegroundColor Cyan
     Get-NetIPAddress -AddressFamily IPv4 | 
@@ -88,6 +96,4 @@ function ip {
 }
 '@ -Name "Alias-ip"
 
-# 4. Final Reload
-. $PROFILE
-Write-Host "`n[SUCCESS] PowerShell Custom Script Manager installed globally!" -ForegroundColor Cyan
+Write-Host "`n[SUCCESS] Engine perfectly embedded! No more loading errors." -ForegroundColor Cyan
