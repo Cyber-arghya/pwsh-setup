@@ -59,11 +59,11 @@ if (Test-Path `"$scriptDir`") {
 }
 '@
 
-# 2. Bootstrap the core engine
+# 1. Bootstrap the core engine
 Invoke-Expression $bootstrapCode
 Install-PSScript $bootstrapCode -Name "Install-PSScript"
 
-# 3. Setup Essential Shortcuts & Functions
+# 2. Setup Essential Shortcuts & Functions
 Install-PSScript "function inps { Install-PSScript @args }" -Name "Alias-inps"
 
 inps @'
@@ -87,6 +87,6 @@ function ip {
 }
 '@ -Name "Alias-ip"
 
-# 4. Final Reload
+# 3. Final Reload
 . $PROFILE
 Write-Host "`n[SUCCESS] PowerShell Custom Script Manager installed globally!" -ForegroundColor Cyan
