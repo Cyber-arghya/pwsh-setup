@@ -59,9 +59,6 @@ if (Test-Path `"$scriptDir`") {
 }
 '@
 
-# 1. Enforce Execution Policy for the Current User
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue
-
 # 2. Bootstrap the core engine
 Invoke-Expression $bootstrapCode
 Install-PSScript $bootstrapCode -Name "Install-PSScript"
