@@ -1,19 +1,30 @@
 :: ==========================================
 :: File: install.bat
-:: Description: 1-Click bypass installer for GitHub
+:: Description: Smart Dual-Installer (PS5.1 & PS7)
 :: ==========================================
 @echo off
 title PowerShell Script Manager Installer
 color 0A
 
-echo [*] Initializing automated setup...
-echo [*] Downloading and executing core scripts from GitHub...
+echo [*] Initializing smart automated setup...
+set "SCRIPT_URL=https://raw.githubusercontent.com/Cyber-arghya/pwsh-setup/refs/heads/main/setup.ps1"
 
-:: Bypasses Execution Policy to cleanly run the remote setup script
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/Cyber-arghya/pwsh-setup/refs/heads/main/install.bat | iex"
+:: 1. Install for Windows PowerShell 5.1 (Eta shob Windows pc tei thake by default)
+echo [*] Injecting into Windows PowerShell 5.1...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm %SCRIPT_URL% | iex"
+
+:: 2. Check for modern PowerShell 7+ (pwsh). Jodi thake, tahole shetateo install korbe.
+where pwsh >nul 2>nul
+if %errorlevel% equ 0 (
+    echo.
+    echo [*] PowerShell 7 detected! Injecting into PS7...
+    pwsh -NoProfile -ExecutionPolicy Bypass -Command "irm %SCRIPT_URL% | iex"
+) else (
+    echo.
+    echo [*] PowerShell 7 not found. Skipping PS7 injection.
+)
 
 echo.
-echo [*] Installation finished successfully! 
+echo [*] Smart Installation finished successfully! 
 echo [*] Please close this window and open a NEW PowerShell terminal.
-echo [*] Type 'ip' to test your connection, or 'inps' to add new scripts.
 pause
