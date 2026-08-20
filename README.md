@@ -1,7 +1,33 @@
 # pwsh-setup
-# PowerShell Custom Script Manager 🚀
+# PowerShell Setup Toolkit
 
-A lightweight, persistent, and modular script manager for Windows PowerShell. This tool allows you to instantly inject, save, and globally execute custom PowerShell functions and scripts without worrying about scope, execution policies, or profile reloading.
+A lightweight PowerShell toolkit with two focused entry points: a persistent custom-script manager and a class-based development-environment installer. The installer is modular, idempotent, and lets you choose exactly which tools to install.
+
+## Development Environment CLI
+
+Run `Setup-FullDevEnvironment.ps1` from an elevated PowerShell window. With no parameters it opens an interactive component menu:
+
+```powershell
+.\Setup-FullDevEnvironment.ps1
+```
+
+For repeatable or automated setup, select components directly:
+
+```powershell
+# Install Git and VS Code
+.\Setup-FullDevEnvironment.ps1 -Action Install -Component Core
+
+# Install language tooling and Docker
+.\Setup-FullDevEnvironment.ps1 -Action Install -Component Languages,Containers
+
+# Install every component except VS Code extensions
+.\Setup-FullDevEnvironment.ps1 -Action Install -All -SkipExtensions
+
+# Only show the current tool versions
+.\Setup-FullDevEnvironment.ps1 -Action Verify
+```
+
+Available components are `Core`, `Native` (MSYS2 and GCC), `Languages`, `Containers`, and `Extensions`. The installer skips tools already detected and refreshes the current session PATH after installation.
 
 ---
 
