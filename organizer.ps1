@@ -530,3 +530,47 @@ Register-ArgumentCompleter -CommandName 'Organize-Files' -ParameterName 'TargetE
         Where-Object { $_ -like "$wordToComplete*" } | 
         ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
 }
+
+# ==============================================================================
+# AUTO-SETUP / PROFILE INJECTION (Run once to install permanently)
+# ==============================================================================
+$installDir = "$env:LOCALAPPDATA\FileOrganizer"
+$installPath = "$installDir\organizer.ps1"
+
+# Check if the script is being run from a location other than its permanent install path
+if ($PSCommandPath -and $PSCommandPath -ne$installPath) {
+    Write-Host "`n[*] Installing File Organizer to $installDir..." -ForegroundColor Yellow
+    
+    # 1. Create directory and copy the script permanently
+    if (-not (Test-Path $installDir)) { New-Item -ItemType Directory -Force -Path $installDir | Out-Null }
+    Copy-Item -Path $PSCommandPath -Destination $installPath -Force
+
+    # 2. Define profile paths for both PowerShell 5.1 and PowerShell 7+
+    $profilesToInject = @(
+        "$env:USERPROFILE\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1",
+        "$env:USERPROFILE\Documents\PowerShell\Microsoft.PowerShell_profile.ps1"
+    )
+
+    $injectLine = ". `"$installPath`""
+
+    # 3. Inject into profiles
+    foreach ($prof in $profilesToInject) {
+        $profDir = Split-Path -Parent $prof
+        if (-not (Test-Path $profDir)) { New-Item -ItemType Directory -Force -Path $profDir | Out-Null }
+        if (-not (Test-Path $prof)) { New-Item -ItemType File -Force -Path $prof | Out-Null }
+
+        $content = Get-Content $prof -Raw
+        if ($null -eq $content) { $content = "" }
+
+        # Add the line only if it doesn't already exist
+        if ($content -notmatch \[regex\]::Escape($injectLine)) {
+            $content = $content.TrimEnd() + "`n`n# File Organizer Permanent Setup`n$injectLine`n"
+            Set-Content -Path $prof -Value $content
+            Write-Host "[+] Successfully injected into: $prof" -ForegroundColor Green
+        } else {
+            Write-Host "[!] Already installed in: $prof" -ForegroundColor DarkGray
+        }
+    }
+    
+    Write-Host "[*] Setup Complete! Restart your terminal or run '. `$PROFILE' to start using 'Organize-Files'." -ForegroundColor Cyan
+}
